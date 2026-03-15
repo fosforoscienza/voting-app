@@ -70,7 +70,7 @@
       font-weight: 700;
       letter-spacing: 0.01em;
       cursor: pointer;
-      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+      transition: transform .15s ease, box-shadow .15s ease;
       position: relative;
       overflow: hidden;
     }
@@ -93,7 +93,7 @@
     .btn-collabora    { background: var(--green); color: #fff; box-shadow: 0 8px 24px rgba(34,197,94,.3); }
     .btn-non-collabora{ background: var(--red);   color: #fff; box-shadow: 0 8px 24px rgba(239,68,68,.3); }
 
-    .btn:disabled { opacity: .35; transform: none; box-shadow: none; cursor: not-allowed; }
+    .btn:disabled { opacity: .35; transform: none !important; box-shadow: none; cursor: not-allowed; }
 
     /* ── Confirmed screen ────────────────────────── */
     #confirmed-screen {
@@ -169,7 +169,7 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Error toast ─────────────────────────────── */
+    /* ── Toast ───────────────────────────────────── */
     #toast {
       position: fixed;
       bottom: 2rem;
@@ -191,10 +191,7 @@
 </head>
 <body>
 
-  <!-- Loading -->
   <div id="loading"><div class="spinner"></div></div>
-
-  <!-- Toast -->
   <div id="toast"></div>
 
   <!-- Vote screen -->
@@ -216,14 +213,15 @@
   </div>
 
   <script>
-    const LS_KEY = 'voting_choice';
-    const LS_ID  = 'voting_id';
+    // ─── Chiavi localStorage ───────────────────────
+    const LS_ID    = 'voting_id';     // UUID permanente del dispositivo
+    const LS_ROUND = 'voting_round';  // roundId dell'ultimo voto
+    const LS_KEY   = 'voting_choice'; // scelta dell'ultimo voto
 
-    // Genera o recupera un ID univoco persistente
+    // ─── Helpers ──────────────────────────────────
     function getVoterId() {
       let id = localStorage.getItem(LS_ID);
       if (!id) {
-        // UUID v4 semplice
         id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
           const r = Math.random() * 16 | 0;
           return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
@@ -233,75 +231,132 @@
       return id;
     }
 
-    function showToast(msg, duration = 3000) {
+    function clearVote() {
+      localStorage.removeItem(LS_KEY);
+      localStorage.removeItem(LS_ROUND);
+    }
+
+    function saveVote(choice, round) {
+      localStorage.setItem(LS_KEY,    choice);
+      localStorage.setItem(LS_ROUND,  String(round));
+    }
+
+    function getSavedVote() {
+      return {
+        choice: localStorage.getItem(LS_KEY),
+        round:  Number(localStorage.getItem(LS_ROUND) || 0),
+      };
+    }
+
+    function showToast(msg, duration = 3500) {
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), duration);
     }
 
-    function showConfirmed(choice) {
-      document.getElementById('vote-screen').style.display      = 'none';
-      const s = document.getElementById('confirmed-screen');
-      s.style.display = 'flex';
-
-      const isCollab = choice === 'collabora';
-      const badge  = document.getElementById('confirmed-badge');
-      const title  = document.getElementById('confirmed-title');
-      const chip   = document.getElementById('confirmed-chip');
-
-      badge.textContent = isCollab ? '✓' : '✗';
-      badge.className   = 'badge ' + (isCollab ? 'badge-green' : 'badge-red');
-      title.textContent = isCollab ? 'Collabora' : 'Non Collabora';
-      title.style.color = isCollab ? 'var(--green)' : 'var(--red)';
-      chip.textContent  = 'Voto registrato';
-      chip.className    = 'chip ' + (isCollab ? 'chip-green' : 'chip-red');
+    function setButtons(disabled) {
+      document.querySelectorAll('.btn').forEach(b => b.disabled = disabled);
     }
 
+    function showConfirmed(choice) {
+      document.getElementById('vote-screen').style.display = 'none';
+      document.getElementById('confirmed-screen').style.display = 'flex';
+
+      const isCollab = choice === 'collabora';
+      document.getElementById('confirmed-badge').textContent  = isCollab ? '✓' : '✗';
+      document.getElementById('confirmed-badge').className    = 'badge ' + (isCollab ? 'badge-green' : 'badge-red');
+      document.getElementById('confirmed-title').textContent  = isCollab ? 'Collabora' : 'Non Collabora';
+      document.getElementById('confirmed-title').style.color  = isCollab ? 'var(--green)' : 'var(--red)';
+      document.getElementById('confirmed-chip').textContent   = 'Voto registrato';
+      document.getElementById('confirmed-chip').className     = 'chip ' + (isCollab ? 'chip-green' : 'chip-red');
+    }
+
+    function showVoteScreen() {
+      document.getElementById('confirmed-screen').style.display = 'none';
+      document.getElementById('vote-screen').style.display      = 'flex';
+      setButtons(false);
+    }
+
+    // ─── Init: controlla roundId con il server ─────
+    // Questa chiamata è ultra-leggera (legge solo una variabile JS lato server).
+    // 300 richieste simultanee vengono gestite in pochi ms.
+    async function init() {
+      const { choice, round: savedRound } = getSavedVote();
+
+      // Nessun voto locale → mostra subito i pulsanti senza aspettare il server
+      if (!choice) { showVoteScreen(); return; }
+
+      // C'è un voto locale: verifica che il round corrisponda ancora
+      try {
+        const res  = await fetch('/api/status');
+        const data = await res.json();
+
+        if (data.roundId === savedRound) {
+          // Round invariato → mostra la conferma del voto precedente
+          showConfirmed(choice);
+        } else {
+          // Il server è stato resettato → pulisci e mostra i pulsanti
+          clearVote();
+          showVoteScreen();
+        }
+      } catch {
+        // Se la rete fallisce, usa il dato locale come fallback
+        showConfirmed(choice);
+      }
+    }
+
+    // ─── Votazione ────────────────────────────────
     async function vote(choice) {
       const voterId = getVoterId();
 
-      // Già votato in locale?
-      const saved = localStorage.getItem(LS_KEY);
-      if (saved) { showConfirmed(saved); return; }
-
-      // Disabilita bottoni e mostra loader
-      document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+      setButtons(true);
       document.getElementById('loading').style.display = 'flex';
 
       try {
-        const res = await fetch('/api/vote', {
+        // Recupera il roundId attuale dal localStorage (già noto se init è ok)
+        const currentRound = Number(localStorage.getItem(LS_ROUND) || 0);
+
+        const res  = await fetch('/api/vote', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ voterId, choice }),
+          body: JSON.stringify({ voterId, choice, roundId: currentRound }),
         });
 
         const data = await res.json();
 
         if (res.ok) {
-          localStorage.setItem(LS_KEY, choice);
+          saveVote(choice, data.roundId);
           showConfirmed(choice);
-        } else if (res.status === 409) {
-          // Il server sa già che ha votato (es. stesso ID da altro browser)
-          localStorage.setItem(LS_KEY, choice);
+
+        } else if (data.resetDetected) {
+          // Reset avvenuto mentre l'utente stava per votare
+          clearVote();
+          // Aggiorna il roundId locale con quello appena ricevuto dal server
+          localStorage.setItem(LS_ROUND, String(data.roundId));
+          showToast('La votazione è stata azzerata. Puoi votare di nuovo.');
+          showVoteScreen();
+
+        } else if (data.alreadyVoted) {
+          // Doppio voto: l'ID è già nel Set del server (stesso round)
+          saveVote(choice, data.roundId);
           showConfirmed(choice);
+
         } else {
           showToast('Errore: ' + (data.error || 'riprova.'));
-          document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+          setButtons(false);
         }
+
       } catch {
         showToast('Connessione persa — riprova tra un momento.');
-        document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+        setButtons(false);
       } finally {
         document.getElementById('loading').style.display = 'none';
       }
     }
 
-    // All'avvio: ripristina stato se già votato
-    (function init() {
-      const saved = localStorage.getItem(LS_KEY);
-      if (saved) showConfirmed(saved);
-    })();
+    // Avvio
+    init();
   </script>
 </body>
 </html>
