@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vota</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:  #22c55e;
+      --green-d:#16a34a;
+      --red:    #ef4444;
+      --red-d:  #dc2626;
+      --bg:     #0f172a;
+      --card:   #1e293b;
+      --text:   #f1f5f9;
+      --muted:  #94a3b8;
+      --radius: 20px;
+    }
+
+    body {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    /* ── Voting screen ───────────────────────────── */
+    #vote-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .btn-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      width: 100%;
+    }
+
+    .btn {
+      padding: 3rem 1rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: clamp(1.1rem, 4vw, 1.5rem);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .btn:hover::after  { opacity: .06; }
+    .btn:active::after { opacity: .14; }
+
+    .btn:hover  { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,.4); }
+    .btn:active { transform: translateY(0);    box-shadow: none; }
+
+    .btn-collabora    { background: var(--green); color: #fff; box-shadow: 0 8px 24px rgba(34,197,94,.3); }
+    .btn-non-collabora{ background: var(--red);   color: #fff; box-shadow: 0 8px 24px rgba(239,68,68,.3); }
+
+    .btn:disabled { opacity: .35; transform: none; box-shadow: none; cursor: not-allowed; }
+
+    /* ── Confirmed screen ────────────────────────── */
+    #confirmed-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .badge {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.8rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .badge-green { background: rgba(34,197,94,.15); }
+    .badge-red   { background: rgba(239,68,68,.15); }
+
+    #confirmed-title {
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.6rem;
+    }
+
+    #confirmed-sub {
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    .chip {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: .45rem 1.1rem;
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .chip-green { background: rgba(34,197,94,.15); color: var(--green); }
+    .chip-red   { background: rgba(239,68,68,.15);  color: var(--red); }
+
+    /* ── Loading overlay ─────────────────────────── */
+    #loading {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,.7);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      z-index: 99;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(255,255,255,.15);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error toast ─────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(6rem);
+      background: #1e293b;
+      color: var(--text);
+      padding: .75rem 1.5rem;
+      border-radius: 12px;
+      font-size: .9rem;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      transition: transform .3s ease;
+      white-space: nowrap;
+      z-index: 100;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- Loading -->
+  <div id="loading"><div class="spinner"></div></div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Vote screen -->
+  <div id="vote-screen">
+    <h1>Esprimi la tua scelta</h1>
+    <p class="subtitle">Seleziona una delle due opzioni. La scelta è definitiva.</p>
+    <div class="btn-wrap">
+      <button class="btn btn-collabora"     onclick="vote('collabora')">Collabora</button>
+      <button class="btn btn-non-collabora" onclick="vote('nonCollabora')">Non Collabora</button>
+    </div>
+  </div>
+
+  <!-- Confirmed screen -->
+  <div id="confirmed-screen">
+    <div class="badge" id="confirmed-badge"></div>
+    <div id="confirmed-title"></div>
+    <div id="confirmed-sub">La tua scelta è stata registrata.<br>Non puoi modificarla fino al prossimo reset.</div>
+    <div class="chip" id="confirmed-chip"></div>
+  </div>
+
+  <script>
+    const LS_KEY = 'voting_choice';
+    const LS_ID  = 'voting_id';
+
+    // Genera o recupera un ID univoco persistente
+    function getVoterId() {
+      let id = localStorage.getItem(LS_ID);
+      if (!id) {
+        // UUID v4 semplice
+        id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+        localStorage.setItem(LS_ID, id);
+      }
+      return id;
+    }
+
+    function showToast(msg, duration = 3000) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), duration);
+    }
+
+    function showConfirmed(choice) {
+      document.getElementById('vote-screen').style.display      = 'none';
+      const s = document.getElementById('confirmed-screen');
+      s.style.display = 'flex';
+
+      const isCollab = choice === 'collabora';
+      const badge  = document.getElementById('confirmed-badge');
+      const title  = document.getElementById('confirmed-title');
+      const chip   = document.getElementById('confirmed-chip');
+
+      badge.textContent = isCollab ? '✓' : '✗';
+      badge.className   = 'badge ' + (isCollab ? 'badge-green' : 'badge-red');
+      title.textContent = isCollab ? 'Collabora' : 'Non Collabora';
+      title.style.color = isCollab ? 'var(--green)' : 'var(--red)';
+      chip.textContent  = 'Voto registrato';
+      chip.className    = 'chip ' + (isCollab ? 'chip-green' : 'chip-red');
+    }
+
+    async function vote(choice) {
+      const voterId = getVoterId();
+
+      // Già votato in locale?
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) { showConfirmed(saved); return; }
+
+      // Disabilita bottoni e mostra loader
+      document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        const res = await fetch('/api/vote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ voterId, choice }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          localStorage.setItem(LS_KEY, choice);
+          showConfirmed(choice);
+        } else if (res.status === 409) {
+          // Il server sa già che ha votato (es. stesso ID da altro browser)
+          localStorage.setItem(LS_KEY, choice);
+          showConfirmed(choice);
+        } else {
+          showToast('Errore: ' + (data.error || 'riprova.'));
+          document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+        }
+      } catch {
+        showToast('Connessione persa — riprova tra un momento.');
+        document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    // All'avvio: ripristina stato se già votato
+    (function init() {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) showConfirmed(saved);
+    })();
+  </script>
+</body>
+</html>

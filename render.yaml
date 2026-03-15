@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: voting-app
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RESET_PASSWORD
+        generateValue: false   # imposta tu la password nel dashboard Render

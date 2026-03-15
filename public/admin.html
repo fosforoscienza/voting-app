@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Risultati</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:  #22c55e;
+      --red:    #ef4444;
+      --bg:     #0f172a;
+      --card:   #1e293b;
+      --border: rgba(255,255,255,.07);
+      --text:   #f1f5f9;
+      --muted:  #64748b;
+      --radius: 16px;
+    }
+
+    body {
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      padding: 2.5rem 1.5rem;
+    }
+
+    .top {
+      max-width: 720px;
+      margin: 0 auto 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+
+    .live {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .3; }
+    }
+
+    /* ── Grid ─────────────────────────────────────── */
+    .grid {
+      max-width: 720px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    /* ── Total card ───────────────────────────────── */
+    .card-total {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .label { color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .3rem; }
+    .value { font-size: 3rem; font-weight: 800; letter-spacing: -0.03em; }
+
+    /* ── Vote cards ───────────────────────────────── */
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem 2rem;
+    }
+
+    .card-green { border-top: 3px solid var(--green); }
+    .card-red   { border-top: 3px solid var(--red); }
+
+    .card-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .card-green .card-name { color: var(--green); }
+    .card-red   .card-name { color: var(--red); }
+
+    .card-count { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.04em; }
+    .card-pct   { color: var(--muted); font-size: 1rem; margin-top: .2rem; }
+
+    /* ── Progress bar ─────────────────────────────── */
+    .bar-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem 2rem;
+    }
+
+    .bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .85rem;
+      color: var(--muted);
+      margin-bottom: .75rem;
+    }
+
+    .bar-track {
+      height: 10px;
+      background: rgba(255,255,255,.07);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--green), #4ade80);
+      transition: width .6s ease;
+    }
+
+    /* ── Reset section ────────────────────────────── */
+    .reset-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem 2rem;
+    }
+
+    .reset-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+    .reset-row { display: flex; gap: .75rem; flex-wrap: wrap; }
+
+    input[type="password"] {
+      flex: 1;
+      min-width: 160px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px;
+      padding: .65rem 1rem;
+      color: var(--text);
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    input[type="password"]:focus { border-color: rgba(255,255,255,.3); }
+
+    .btn-reset {
+      padding: .65rem 1.5rem;
+      border: none;
+      border-radius: 10px;
+      background: var(--red);
+      color: #fff;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .15s;
+    }
+
+    .btn-reset:hover  { opacity: .85; }
+    .btn-reset:active { transform: scale(.97); }
+
+    #msg {
+      margin-top: .75rem;
+      font-size: .9rem;
+      min-height: 1.2em;
+    }
+
+    .msg-ok  { color: var(--green); }
+    .msg-err { color: var(--red); }
+
+    /* ── Auto refresh indicator ───────────────────── */
+    .refresh-info {
+      text-align: center;
+      color: var(--muted);
+      font-size: .8rem;
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top">
+    <h1>Dashboard risultati</h1>
+    <span class="live"><span class="dot"></span> Aggiornamento automatico ogni 3s</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- Totale -->
+    <div class="card-total">
+      <div>
+        <div class="label">Voti totali</div>
+        <div class="value" id="total">—</div>
+      </div>
+    </div>
+
+    <!-- Collabora / Non Collabora -->
+    <div class="cards">
+      <div class="card card-green">
+        <div class="card-name">Collabora</div>
+        <div class="card-count" id="cnt-collab">—</div>
+        <div class="card-pct"  id="pct-collab">—%</div>
+      </div>
+      <div class="card card-red">
+        <div class="card-name">Non Collabora</div>
+        <div class="card-count" id="cnt-non">—</div>
+        <div class="card-pct"  id="pct-non">—%</div>
+      </div>
+    </div>
+
+    <!-- Barra proporzione -->
+    <div class="bar-wrap">
+      <div class="bar-label">
+        <span id="bar-left">Collabora</span>
+        <span id="bar-right">Non Collabora</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Reset -->
+    <div class="reset-card">
+      <h2>Reset votazione</h2>
+      <div class="reset-row">
+        <input type="password" id="pwd" placeholder="Password admin" autocomplete="off" />
+        <button class="btn-reset" onclick="doReset()">Azzera</button>
+      </div>
+      <div id="msg"></div>
+    </div>
+
+  </div>
+
+  <p class="refresh-info">I dati si aggiornano automaticamente ogni 3 secondi.</p>
+
+  <script>
+    async function fetchResults() {
+      try {
+        const res  = await fetch('/api/results');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById('total').textContent      = data.total;
+        document.getElementById('cnt-collab').textContent = data.collabora;
+        document.getElementById('cnt-non').textContent    = data.nonCollabora;
+        document.getElementById('pct-collab').textContent = data.pctCollabora + '%';
+        document.getElementById('pct-non').textContent    = data.pctNonCollabora + '%';
+        document.getElementById('bar').style.width        = data.pctCollabora + '%';
+        document.getElementById('bar-left').textContent   = `Collabora ${data.pctCollabora}%`;
+        document.getElementById('bar-right').textContent  = `Non Collabora ${data.pctNonCollabora}%`;
+      } catch { /* silenzioso */ }
+    }
+
+    async function doReset() {
+      const pwd = document.getElementById('pwd').value;
+      const msg = document.getElementById('msg');
+      msg.textContent = '';
+      msg.className   = '';
+
+      try {
+        const res  = await fetch('/api/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          msg.textContent = '✓ ' + data.message;
+          msg.className   = 'msg-ok';
+          document.getElementById('pwd').value = '';
+          fetchResults();
+        } else {
+          msg.textContent = '✗ ' + (data.error || 'Errore.');
+          msg.className   = 'msg-err';
+        }
+      } catch {
+        msg.textContent = '✗ Connessione persa.';
+        msg.className   = 'msg-err';
+      }
+    }
+
+    // Polling ogni 3 secondi
+    fetchResults();
+    setInterval(fetchResults, 3000);
+  </script>
+</body>
+</html>

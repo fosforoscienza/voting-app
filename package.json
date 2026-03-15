@@ -1,0 +1,16 @@
+{
+  "name": "voting-app",
+  "version": "1.0.0",
+  "description": "Minimal voting app — no database, concurrency-safe",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
