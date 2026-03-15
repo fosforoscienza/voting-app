@@ -191,21 +191,22 @@
 </head>
 <body>
 
-  <div id="loading"><div class="spinner"></div></div>
+  <!-- Mostrato durante init() — impedisce qualsiasi click prematuro -->
+  <div id="loading" style="display:flex"><div class="spinner"></div></div>
   <div id="toast"></div>
 
-  <!-- Vote screen -->
-  <div id="vote-screen">
+  <!-- Vote screen: nascosto e bottoni disabilitati fino al completamento di init() -->
+  <div id="vote-screen" style="display:none">
     <h1>Esprimi la tua scelta</h1>
     <p class="subtitle">Seleziona una delle due opzioni. La scelta è definitiva.</p>
     <div class="btn-wrap">
-      <button class="btn btn-collabora"     onclick="vote('collabora')">Collabora</button>
-      <button class="btn btn-non-collabora" onclick="vote('nonCollabora')">Non Collabora</button>
+      <button class="btn btn-collabora"     onclick="vote('collabora')"    disabled>Collabora</button>
+      <button class="btn btn-non-collabora" onclick="vote('nonCollabora')" disabled>Non Collabora</button>
     </div>
   </div>
 
   <!-- Confirmed screen -->
-  <div id="confirmed-screen">
+  <div id="confirmed-screen" style="display:none">
     <div class="badge" id="confirmed-badge"></div>
     <div id="confirmed-title"></div>
     <div id="confirmed-sub">La tua scelta è stata registrata.<br>Non puoi modificarla fino al prossimo reset.</div>
@@ -279,10 +280,9 @@
     }
 
     // ─── Init ─────────────────────────────────────
-    // Controlla il roundId UNA SOLA VOLTA al caricamento della pagina.
-    // Salva sempre il roundId corrente in localStorage (serve prima di votare).
-    // La pagina di voto non resetta mai nulla autonomamente:
-    // l'unico reset possibile è tramite il pannello admin.
+    // Mostra lo spinner (già visibile nell'HTML) finché non è pronto.
+    // Solo al termine abilita i bottoni o mostra la conferma.
+    // Nessun bottone è mai cliccabile prima del completamento di init().
     async function init() {
       const { choice, round: savedRound } = getSavedVote();
 
@@ -299,7 +299,7 @@
           // Voto già espresso in questo round → schermata definitiva
           showConfirmed(choice);
         } else {
-          // L'admin ha azzerato dopo che l'utente aveva votato → può rivotare
+          // L'admin ha azzerato → il localStorage è vecchio, si può rivotare
           clearVote();
           localStorage.setItem(LS_ROUND, String(serverRound));
           showVoteScreen();
@@ -308,6 +308,9 @@
         // Rete assente: usa il dato locale come fallback
         if (choice) showConfirmed(choice);
         else showVoteScreen();
+      } finally {
+        // Spinner via in ogni caso
+        document.getElementById('loading').style.display = 'none';
       }
     }
 
