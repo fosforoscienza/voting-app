@@ -21,7 +21,7 @@ app.get('/api/status', (_req, res) => {
 
 // ─── Votazione ────────────────────────────────────────────────────────────────
 app.post('/api/vote', (req, res) => {
-  const { voterId, choice, roundId: clientRound } = req.body;
+  const { voterId, choice } = req.body;
 
   // Validazione input
   if (
@@ -33,12 +33,7 @@ app.post('/api/vote', (req, res) => {
     return res.status(400).json({ error: 'Richiesta non valida.' });
   }
 
-  // Il client sta votando per un round già resettato → invitalo a ricaricare
-  if (typeof clientRound === 'number' && clientRound !== roundId) {
-    return res.status(409).json({ error: 'Votazione resettata.', resetDetected: true, roundId });
-  }
-
-  // Doppio voto
+  // Doppio voto nello stesso round
   if (voters.has(voterId)) {
     return res.status(409).json({ error: 'Hai già votato.', alreadyVoted: true, roundId });
   }

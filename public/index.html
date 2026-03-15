@@ -280,29 +280,34 @@
 
     // ─── Init ─────────────────────────────────────
     // Controlla il roundId UNA SOLA VOLTA al caricamento della pagina.
+    // Salva sempre il roundId corrente in localStorage (serve prima di votare).
     // La pagina di voto non resetta mai nulla autonomamente:
     // l'unico reset possibile è tramite il pannello admin.
     async function init() {
       const { choice, round: savedRound } = getSavedVote();
 
-      // Nessun voto locale → mostra subito i pulsanti
-      if (!choice) { showVoteScreen(); return; }
-
-      // Ha già votato: verifica che il round salvato sia ancora quello corrente
       try {
         const res  = await fetch('/api/status');
         const data = await res.json();
-        if (data.roundId === savedRound) {
-          // Round invariato → voto confermato, schermata definitiva
+        const serverRound = data.roundId;
+
+        if (!choice) {
+          // Prima visita: salva il roundId corrente e mostra i pulsanti
+          localStorage.setItem(LS_ROUND, String(serverRound));
+          showVoteScreen();
+        } else if (serverRound === savedRound) {
+          // Voto già espresso in questo round → schermata definitiva
           showConfirmed(choice);
         } else {
-          // L'admin ha azzerato da quando l'utente ha votato → può rivotare
+          // L'admin ha azzerato dopo che l'utente aveva votato → può rivotare
           clearVote();
+          localStorage.setItem(LS_ROUND, String(serverRound));
           showVoteScreen();
         }
       } catch {
-        // Rete assente: mostra la conferma basandosi sul dato locale
-        showConfirmed(choice);
+        // Rete assente: usa il dato locale come fallback
+        if (choice) showConfirmed(choice);
+        else showVoteScreen();
       }
     }
 
@@ -314,13 +319,10 @@
       document.getElementById('loading').style.display = 'flex';
 
       try {
-        // Recupera il roundId attuale dal localStorage (già noto se init è ok)
-        const currentRound = Number(localStorage.getItem(LS_ROUND) || 0);
-
         const res  = await fetch('/api/vote', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ voterId, choice, roundId: currentRound }),
+          body: JSON.stringify({ voterId, choice }),
         });
 
         const data = await res.json();
@@ -328,20 +330,9 @@
         if (res.ok) {
           saveVote(choice, data.roundId);
           showConfirmed(choice);
-
-        } else if (data.resetDetected) {
-          // Reset avvenuto mentre l'utente stava per votare
-          clearVote();
-          // Aggiorna il roundId locale con quello appena ricevuto dal server
-          localStorage.setItem(LS_ROUND, String(data.roundId));
-          showToast('La votazione è stata azzerata. Puoi votare di nuovo.');
-          showVoteScreen();
-
         } else if (data.alreadyVoted) {
-          // Doppio voto: l'ID è già nel Set del server (stesso round)
-          saveVote(choice, data.roundId);
+          // Doppio invio (es. doppio click): tratta come voto già registrato
           showConfirmed(choice);
-
         } else {
           showToast('Errore: ' + (data.error || 'riprova.'));
           setButtons(false);
