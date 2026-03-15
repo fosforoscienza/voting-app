@@ -278,48 +278,32 @@
       setButtons(false);
     }
 
-    // ─── Polling roundId ──────────────────────────
-    // Ogni 3s controlla se il server ha un roundId diverso da quello salvato.
-    // Se l'admin ha azzerato, tutti gli utenti tornano automaticamente ai pulsanti.
-    // GET /api/status è ultra-leggero: legge solo una variabile in memoria.
-    async function checkRound() {
-      try {
-        const res  = await fetch('/api/status');
-        const data = await res.json();
-        const { round: savedRound, choice } = getSavedVote();
-
-        if (data.roundId !== savedRound) {
-          // Reset rilevato → pulisci e torna ai pulsanti
-          clearVote();
-          showVoteScreen();
-        }
-      } catch { /* rete assente: mantieni stato attuale */ }
-    }
-
     // ─── Init ─────────────────────────────────────
+    // Controlla il roundId UNA SOLA VOLTA al caricamento della pagina.
+    // La pagina di voto non resetta mai nulla autonomamente:
+    // l'unico reset possibile è tramite il pannello admin.
     async function init() {
       const { choice, round: savedRound } = getSavedVote();
 
       // Nessun voto locale → mostra subito i pulsanti
-      if (!choice) { showVoteScreen(); }
-      else {
-        // Verifica che il round sia ancora valido
-        try {
-          const res  = await fetch('/api/status');
-          const data = await res.json();
-          if (data.roundId === savedRound) {
-            showConfirmed(choice);
-          } else {
-            clearVote();
-            showVoteScreen();
-          }
-        } catch {
-          showConfirmed(choice); // fallback offline
-        }
-      }
+      if (!choice) { showVoteScreen(); return; }
 
-      // Polling continuo: rileva reset in tempo reale anche per chi ha già votato
-      setInterval(checkRound, 3000);
+      // Ha già votato: verifica che il round salvato sia ancora quello corrente
+      try {
+        const res  = await fetch('/api/status');
+        const data = await res.json();
+        if (data.roundId === savedRound) {
+          // Round invariato → voto confermato, schermata definitiva
+          showConfirmed(choice);
+        } else {
+          // L'admin ha azzerato da quando l'utente ha votato → può rivotare
+          clearVote();
+          showVoteScreen();
+        }
+      } catch {
+        // Rete assente: mostra la conferma basandosi sul dato locale
+        showConfirmed(choice);
+      }
     }
 
     // ─── Votazione ────────────────────────────────
