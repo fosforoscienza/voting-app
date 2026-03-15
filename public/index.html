@@ -278,32 +278,48 @@
       setButtons(false);
     }
 
-    // ─── Init: controlla roundId con il server ─────
-    // Questa chiamata è ultra-leggera (legge solo una variabile JS lato server).
-    // 300 richieste simultanee vengono gestite in pochi ms.
-    async function init() {
-      const { choice, round: savedRound } = getSavedVote();
-
-      // Nessun voto locale → mostra subito i pulsanti senza aspettare il server
-      if (!choice) { showVoteScreen(); return; }
-
-      // C'è un voto locale: verifica che il round corrisponda ancora
+    // ─── Polling roundId ──────────────────────────
+    // Ogni 3s controlla se il server ha un roundId diverso da quello salvato.
+    // Se l'admin ha azzerato, tutti gli utenti tornano automaticamente ai pulsanti.
+    // GET /api/status è ultra-leggero: legge solo una variabile in memoria.
+    async function checkRound() {
       try {
         const res  = await fetch('/api/status');
         const data = await res.json();
+        const { round: savedRound, choice } = getSavedVote();
 
-        if (data.roundId === savedRound) {
-          // Round invariato → mostra la conferma del voto precedente
-          showConfirmed(choice);
-        } else {
-          // Il server è stato resettato → pulisci e mostra i pulsanti
+        if (data.roundId !== savedRound) {
+          // Reset rilevato → pulisci e torna ai pulsanti
           clearVote();
           showVoteScreen();
         }
-      } catch {
-        // Se la rete fallisce, usa il dato locale come fallback
-        showConfirmed(choice);
+      } catch { /* rete assente: mantieni stato attuale */ }
+    }
+
+    // ─── Init ─────────────────────────────────────
+    async function init() {
+      const { choice, round: savedRound } = getSavedVote();
+
+      // Nessun voto locale → mostra subito i pulsanti
+      if (!choice) { showVoteScreen(); }
+      else {
+        // Verifica che il round sia ancora valido
+        try {
+          const res  = await fetch('/api/status');
+          const data = await res.json();
+          if (data.roundId === savedRound) {
+            showConfirmed(choice);
+          } else {
+            clearVote();
+            showVoteScreen();
+          }
+        } catch {
+          showConfirmed(choice); // fallback offline
+        }
       }
+
+      // Polling continuo: rileva reset in tempo reale anche per chi ha già votato
+      setInterval(checkRound, 3000);
     }
 
     // ─── Votazione ────────────────────────────────

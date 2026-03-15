@@ -3,7 +3,6 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const RESET_PASSWORD = process.env.RESET_PASSWORD || 'admin2024';
 
 // ─── In-memory state ──────────────────────────────────────────────────────────
 // Node.js è single-threaded: tutte le operazioni sulle variabili sono atomiche.
@@ -64,13 +63,8 @@ app.get('/api/results', (_req, res) => {
   });
 });
 
-// ─── Reset (protetto da password) ────────────────────────────────────────────
-app.post('/api/reset', (req, res) => {
-  const { password } = req.body;
-  if (password !== RESET_PASSWORD) {
-    return res.status(401).json({ error: 'Password errata.' });
-  }
-
+// ─── Reset ────────────────────────────────────────────────────────────────────
+app.post('/api/reset', (_req, res) => {
   roundId++;                                  // invalida tutti i localStorage client
   votes  = { collabora: 0, nonCollabora: 0 };
   voters.clear();

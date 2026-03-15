@@ -149,44 +149,34 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 1.75rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
     }
 
-    .reset-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-
-    .reset-row { display: flex; gap: .75rem; flex-wrap: wrap; }
-
-    input[type="password"] {
-      flex: 1;
-      min-width: 160px;
-      background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 10px;
-      padding: .65rem 1rem;
-      color: var(--text);
-      font-size: .95rem;
-      outline: none;
-      transition: border-color .2s;
-    }
-
-    input[type="password"]:focus { border-color: rgba(255,255,255,.3); }
+    .reset-card h2 { font-size: 1rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 
     .btn-reset {
-      padding: .65rem 1.5rem;
+      padding: .75rem 2rem;
       border: none;
       border-radius: 10px;
       background: var(--red);
       color: #fff;
-      font-size: .95rem;
-      font-weight: 600;
+      font-size: 1rem;
+      font-weight: 700;
       cursor: pointer;
       transition: opacity .2s, transform .15s;
+      white-space: nowrap;
     }
 
-    .btn-reset:hover  { opacity: .85; }
-    .btn-reset:active { transform: scale(.97); }
+    .btn-reset:hover   { opacity: .85; }
+    .btn-reset:active  { transform: scale(.97); }
+    .btn-reset:disabled{ opacity: .4; cursor: not-allowed; }
 
     #msg {
-      margin-top: .75rem;
+      width: 100%;
       font-size: .9rem;
       min-height: 1.2em;
     }
@@ -248,10 +238,7 @@
     <!-- Reset -->
     <div class="reset-card">
       <h2>Reset votazione</h2>
-      <div class="reset-row">
-        <input type="password" id="pwd" placeholder="Password admin" autocomplete="off" />
-        <button class="btn-reset" onclick="doReset()">Azzera</button>
-      </div>
+      <button class="btn-reset" id="btn-reset" onclick="doReset()">Azzera</button>
       <div id="msg"></div>
     </div>
 
@@ -278,23 +265,19 @@
     }
 
     async function doReset() {
-      const pwd = document.getElementById('pwd').value;
+      const btn = document.getElementById('btn-reset');
       const msg = document.getElementById('msg');
+      btn.disabled    = true;
       msg.textContent = '';
       msg.className   = '';
 
       try {
-        const res  = await fetch('/api/reset', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pwd }),
-        });
+        const res  = await fetch('/api/reset', { method: 'POST' });
         const data = await res.json();
 
         if (res.ok) {
-          msg.textContent = '✓ ' + data.message;
+          msg.textContent = '✓ ' + data.message + ` (round ${data.roundId})`;
           msg.className   = 'msg-ok';
-          document.getElementById('pwd').value = '';
           fetchResults();
         } else {
           msg.textContent = '✗ ' + (data.error || 'Errore.');
@@ -303,6 +286,8 @@
       } catch {
         msg.textContent = '✗ Connessione persa.';
         msg.className   = 'msg-err';
+      } finally {
+        btn.disabled = false;
       }
     }
 
